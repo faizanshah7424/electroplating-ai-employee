@@ -47,17 +47,26 @@ class ConversationMemory:
         lower_content = content.lower()
         
         # 1. Name extraction (e.g. "mera naam Faizan hai", "I am Faizan", "my name is Faizan")
-        name_patterns = [
-            r"mera\s+naam\s+([a-zA-Z]+)",
-            r"my\s+name\s+is\s+([a-zA-Z]+)",
-            r"i\s+am\s+([a-zA-Z]+)",
-            r"this\s+is\s+([a-zA-Z]+)"
+        name_query_indicators = [
+            "naam kya", "name kya", "naam kia", "name kia", 
+            "what is my name", "what's my name", "who am i",
+            "tell me my name", "know my name", "my name?"
         ]
-        for pattern in name_patterns:
-            match = re.search(pattern, lower_content)
-            if match:
-                self.variables["name"] = match.group(1).strip().capitalize()
-                break
+        
+        if any(indicator in lower_content for indicator in name_query_indicators):
+            pass
+        else:
+            name_patterns = [
+                r"mera\s+(?:naam|name)\s+([a-zA-Z\s]+?)(?:\s+hai|\s+is|\.|$)",
+                r"my\s+name\s+is\s+([a-zA-Z\s]+?)(?:\.|$)",
+                r"i\s+am\s+([a-zA-Z\s]+?)(?:\.|$)"
+            ]
+            for pattern in name_patterns:
+                match = re.search(pattern, lower_content)
+                if match:
+                    raw_name = match.group(1).strip()
+                    self.variables["name"] = " ".join([w.capitalize() for w in raw_name.split()])
+                    break
                 
         # 2. Mood extraction (e.g. "mood off hai", "i am sad", "happy")
         mood_off_indicators = ["mood off", "sad", "upset", "mood kharab", "tensed", "tired", "mood khraab"]

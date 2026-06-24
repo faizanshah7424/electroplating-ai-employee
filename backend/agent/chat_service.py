@@ -1,10 +1,39 @@
 import logging
+import re
 from typing import List, Dict, Any, Optional
 from backend.config import settings
 from backend.agent.prompts import SYSTEM_PROMPT
 from backend.agent.memory import memory_manager, ConversationMemory
 
 logger = logging.getLogger("electroplating.agent.chat_service")
+
+def classify_intent(message: str) -> str:
+    """
+    Classify the user message intent. Returns either 'GENERAL' or 'ELECTROPLATING'.
+    """
+    msg_lower = message.lower()
+    
+    # 1. Broad list of technical keywords that trigger Electroplating Mode
+    tech_keywords = [
+        "nickel", "chrome", "chromium", "semi nickel", "semi-bright", "semibright",
+        "caustic cleaning", "caustic", "naoh", "degreas", "cleaning", "degrease", "degreasing",
+        "sulfuric acid", "sulfuric", "h2so4", "activation", "pickle", "pickling",
+        "current density", "current", "density", "ampere", "a/dm",
+        "ph", "temperature", "temp", "celcius",
+        "defect", "peeling", "peel", "pitting", "pit", "burning", "burn", 
+        "blister", "roughness", "streaks", "dullness",
+        "motorcycle", "bike", "rim", "silencer", "handle", "fender", "plating", "plate", "electroplating"
+    ]
+    
+    # 2. Strict boundary/exact matching for short words to avoid false positives in general conversation
+    for kw in tech_keywords:
+        if kw in ["ph", "temp", "pit", "burn", "acid", "rim", "plate", "bath", "clean"]:
+            if re.search(rf"\b{kw}\b", msg_lower):
+                return "ELECTROPLATING"
+        elif kw in msg_lower:
+            return "ELECTROPLATING"
+            
+    return "GENERAL"
 
 HAS_GEMINI_SDK = False
 try:
@@ -24,25 +53,14 @@ class SimulationEngine:
         
         name_phrase = f" {name}" if name else ""
 
-        # List of technical keywords that trigger Mode B (Electroplating Expert)
-        tech_keywords = [
-            "nickel", "chrome", "chromium", "bath", "acid", "h2so4", "activation", 
-            "clean", "caustic", "naoh", "degreas", "pickle", "watts", "semi-bright", 
-            "semibright", "brightener", "peeling", "pitting", "burning", "burn", 
-            "pit", "peel", "thickness", "current density", "current", "temperature", 
-            "temp", "faraday", "equation", "formula", "calculation", "hull cell", 
-            "dummying", "purifier", "titration"
-        ]
-        
-        has_tech_intent = any(keyword in prompt_lower for keyword in tech_keywords)
+        intent = classify_intent(prompt)
 
         # ----------------------------------------------------
         # MODE B: ELECTROPLATING EXPERT (Activated on Technical Intent)
         # ----------------------------------------------------
-        if has_tech_intent:
+        if intent == "ELECTROPLATING":
             # - pH issues (nickel)
             if "ph" in prompt_lower and ("nickel" in prompt_lower or "bath" in prompt_lower or "watt" in prompt_lower):
-                # Check for value
                 if "5.5" in prompt_lower or "high" in prompt_lower:
                     return f"Nickel bath ka pH 5.5 hona bohot zyaada hai{name_phrase}. Isse boundary layer par nickel hydroxide precipitate ho jata hai, jis se deposition rough aur burnt ho sakti hai. Ideal pH range **3.8 to 4.5** (bright nickel ke liye **4.0 to 4.8**) honi chahiye. pH kam karne ke liye dilute **Sulfuric Acid ($H_2SO_4$)** ka chemical addition karein."
                 elif "low" in prompt_lower or "3." in prompt_lower or "2." in prompt_lower:
@@ -89,7 +107,26 @@ class SimulationEngine:
         # MODE A: GENERAL ASSISTANT (Natural Human Dialogue)
         # ----------------------------------------------------
         
-        # 1. Greetings (Roman Urdu/English/Urdu)
+        # 1. Identity Support (e.g. "apka naam kya hai", "who are you")
+        if any(w in prompt_lower for w in ["apka naam", "apka name", "ap ka naam", "ap ka name", "aap ka naam", "aap ka name", "who are you", "tum kaun", "ap kaun", "your name"]):
+            return "Main Electroplating AI Employee hoon. Aap meri madad se general baat bhi kar sakte hain aur electroplating ke technical sawalat bhi pooch sakte hain."
+
+        # 2. Name Queries (e.g. "mera naam kya", "what is my name")
+        if any(w in prompt_lower for w in ["mera naam kya", "what is my name", "mera name kya", "mera naam kia", "mera name kia", "what is my name", "what's my name"]):
+            if name:
+                return f"Aap ne pehle bataya tha ke aap ka naam {name} hai."
+            else:
+                return "Aap ne abhi tak apna naam nahi bataya. Aapka naam kya hai?"
+
+        # 3. Simple Math (e.g. "2+2", "2 + 2")
+        if any(math_str in prompt_lower.replace(" ", "") for math_str in ["2+2", "2+2="]):
+            return "2+2 = 4"
+
+        # 4. Weather Queries
+        if any(w in prompt_lower for w in ["mausam", "weather"]):
+            return "Main ek AI assistant hoon, mere paas live weather tracking ka system nahi hai, lekin aap apne local area ka weather forecast check kar sakte hain!"
+
+        # 5. Greetings (Roman Urdu/English/Urdu)
         if any(w in prompt_lower for w in ["assalam o alaikum", "assalam-o-alaikum", "salam", "aoa", "a.o.a"]):
             reply = f"Wa Alaikum Assalam{name_phrase}! Kaise hain aap? Main aap ki kis tarah madad kar sakta hoon?"
             if mood == "off":
@@ -97,7 +134,7 @@ class SimulationEngine:
             return reply
 
         if any(w in prompt_lower for w in ["kese ho", "kaise ho", "kya haal hai", "kya chal raha"]):
-            reply = f"Alhamdulillah{name_phrase}, main bilkul theek hoon! Aap batayein, aap kaise hain? Aaj floor par kya chal raha hai?"
+            reply = f"Alhamdulillah{name_phrase}, main bilkul theek hoon! Aap batayein, aap kaise hain? Aaj kya chal raha hai?"
             return reply
 
         if any(prompt_lower.startswith(w) for w in ["hello", "hi", "hey", "hy"]):
@@ -106,27 +143,24 @@ class SimulationEngine:
                 reply += " (Hope your day gets better! Let me know if you want to talk or have any queries.)"
             return reply
 
-        # 2. Name introduction acknowledgements
+        # 6. Name introduction acknowledgements
         if "mera naam" in prompt_lower or "my name is" in prompt_lower or "i am" in prompt_lower:
             if name:
                 return f"Bohat khoob, {name}! Mujhe khushi hui aapse mil kar. Aur batayein, aaj kya chal raha hai?"
 
-        # 3. Mood acknowledgements
+        # 7. Mood acknowledgements
         if any(ind in prompt_lower for ind in ["mood off", "upset", "sad", "tensed", "tired", "exhausted", "tension"]):
             return f"Acha? Kya hua dost{name_phrase}? Aaj kaam ka load zyada hai ya shift sakht rahi? Pareshan mat hon, chill karein!"
 
         if any(ind in prompt_lower for ind in ["happy", "mood acha", "khush", "good mood", "fine"]):
             return f"Zabardast{name_phrase}! Khushi hui sun kar. Jab mood acha ho to sara din acha guzarta hai! Aur bataiye, aaj kis cheez par guftagu karni hai?"
 
-        if any(w in prompt_lower for w in ["help", "kaun ho", "who are you", "what can you do", "skills", "capabilities"]):
-            return f"Main aapka intelligent AI assistant/employee assistant hoon{name_phrase}. Main aam guftagu (Urdu, Roman English, English) bhi kar sakta hoon aur electroplating calculations aur diagnostics mein bhi expert hoon! Jo bhi poochna ho, be-fikar ho kar batayein."
-
-        # Default conversational responses
+        # Default conversational responses (Completely general, no electroplating references!)
         responses = [
-            f"Theek ho gaya{name_phrase}. Aur batayein, aaj kya chal raha hai? Koi sawal ho to zaroor batayein.",
-            f"Samajh gaya dost{name_phrase}. Agar koi specific baat ya electroplating operations ke bare mein janna ho to be-fikar ho kar batayein.",
-            f"Ji bilkul. Safe reh kar kaam karein. Aur batayein, kya chal raha hai?",
-            f"Sahi baat hai{name_phrase}. Main yahan aapki help ke liye hazir hoon. Koi bhi query ho to share karein!"
+            f"Theek ho gaya{name_phrase}. Aur batayein, sab kheriyat hai?",
+            f"Samajh gaya dost{name_phrase}. Koi aur baat karni ho ya sawal ho to batayein.",
+            f"Ji bilkul. Aur sunayein, kya chal raha hai?",
+            f"Sahi baat hai{name_phrase}. Main yahan aapki madad ke liye tayyar hoon. Batayein!"
         ]
         idx = len(prompt) % len(responses)
         return responses[idx]
@@ -180,11 +214,40 @@ def run_chat_query(
                 
             chat = model.start_chat(history=gemini_history)
             
-            context_prompt = ""
-            if context:
-                context_prompt = f"[System Context: User is plating '{context.get('part', 'rim')}' through the 8-stage line. Active selected bath: {context.get('metal', 'nickel')}]\n\n"
+            intent = classify_intent(user_message)
             
-            full_prompt = context_prompt + user_message
+            # Retrieve memory variables to inject into prompt directive
+            name = memory.get_variable("name")
+            mood = memory.get_variable("mood")
+            bath_context = memory.get_variable("bath_context")
+            
+            name_info = f"User's name: {name}." if name else "User's name: Not known yet."
+            mood_info = f"User's mood: {mood}." if mood else "User's mood: Not specified."
+            bath_info = f"Last active bath context: {bath_context}." if bath_context else "No active bath context."
+            
+            memory_directive = f"[Memory Info: {name_info} | {mood_info} | {bath_info}]"
+
+            if intent == "GENERAL":
+                directive = (
+                    f"{memory_directive}\n"
+                    "[SYSTEM DIRECTIVE: The user's query is casual/general conversation. "
+                    "You MUST respond in GENERAL MODE (Mode A). Do NOT reference electroplating, "
+                    "baths, or chemical parameters. If the user asks for your name or identity, "
+                    "you MUST answer exactly: 'Main Electroplating AI Employee hoon. Aap meri "
+                    "madad se general baat bhi kar sakte hain aur electroplating ke technical sawalat bhi pooch sakte hain.']\n\n"
+                )
+            else:
+                context_info = ""
+                if context:
+                    context_info = f"User is plating '{context.get('part', 'rim')}' through the 8-stage line. Active selected bath: {context.get('metal', 'nickel')}. "
+                directive = (
+                    f"{memory_directive}\n"
+                    f"[System Context: {context_info}]\n"
+                    "[SYSTEM DIRECTIVE: The user's query is technical. Respond in ELECTROPLATING MODE (Mode B). "
+                    "Provide expert plating guidance, calculations, or quality control steps as requested.]\n\n"
+                )
+            
+            full_prompt = directive + user_message
             logger.info("Sending message to Gemini Generative API...")
             response = chat.send_message(full_prompt)
             
