@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { API_URL } from "@/lib/api"
 
 export default function ImageUpload() {
   const [result, setResult] = useState("")
@@ -21,8 +22,7 @@ export default function ImageUpload() {
       const formData = new FormData()
       formData.append("file", file)
 
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || (typeof window !== "undefined" ? `${window.location.protocol}//${window.location.hostname}:8000` : "http://127.0.0.1:8000");
-      const res = await fetch(`${baseUrl}/detect`, {
+      const res = await fetch(`${API_URL}/detect`, {
         method: "POST",
         body: formData
       })
