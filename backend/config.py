@@ -15,9 +15,9 @@ class Settings:
     # CORS Configurations
     # Allow local development ports, or production domains from environment variables
     CORS_ORIGINS: list = [
-        origin.strip() for origin in os.getenv(
+        origin.strip().replace('"', '').replace("'", '') for origin in os.getenv(
             "CORS_ORIGINS",
-            "http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,http://localhost:5173,http://127.0.0.1:5173"
+            "https://electroplating-ai-employee.vercel.app,http://localhost:3000,http://localhost:3001,http://127.0.0.1:3000,http://127.0.0.1:3001,http://localhost:5173,http://127.0.0.1:5173"
         ).split(",")
     ]
     
