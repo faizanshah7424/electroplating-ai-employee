@@ -23,87 +23,111 @@ class SimulationEngine:
         bath_context = memory.get_variable("bath_context")
         
         name_phrase = f" {name}" if name else ""
+
+        # List of technical keywords that trigger Mode B (Electroplating Expert)
+        tech_keywords = [
+            "nickel", "chrome", "chromium", "bath", "acid", "h2so4", "activation", 
+            "clean", "caustic", "naoh", "degreas", "pickle", "watts", "semi-bright", 
+            "semibright", "brightener", "peeling", "pitting", "burning", "burn", 
+            "pit", "peel", "thickness", "current density", "current", "temperature", 
+            "temp", "faraday", "equation", "formula", "calculation", "hull cell", 
+            "dummying", "purifier", "titration"
+        ]
         
-        # 1. Greetings (Roman English & English)
-        if any(w in prompt_lower for w in ["assalam o alaikum", "assalam-o-alaikum", "salam", "slam", "aoa", "a.o.a"]):
-            reply = f"Wa Alaikum Assalam{name_phrase}! Main aap ki kis tarah madad kar sakta hoon?"
+        has_tech_intent = any(keyword in prompt_lower for keyword in tech_keywords)
+
+        # ----------------------------------------------------
+        # MODE B: ELECTROPLATING EXPERT (Activated on Technical Intent)
+        # ----------------------------------------------------
+        if has_tech_intent:
+            # - pH issues (nickel)
+            if "ph" in prompt_lower and ("nickel" in prompt_lower or "bath" in prompt_lower or "watt" in prompt_lower):
+                # Check for value
+                if "5.5" in prompt_lower or "high" in prompt_lower:
+                    return f"Nickel bath ka pH 5.5 hona bohot zyaada hai{name_phrase}. Isse boundary layer par nickel hydroxide precipitate ho jata hai, jis se deposition rough aur burnt ho sakti hai. Ideal pH range **3.8 to 4.5** (bright nickel ke liye **4.0 to 4.8**) honi chahiye. pH kam karne ke liye dilute **Sulfuric Acid ($H_2SO_4$)** ka chemical addition karein."
+                elif "low" in prompt_lower or "3." in prompt_lower or "2." in prompt_lower:
+                    return f"Nickel bath ka pH low hona (under 3.5) cathode current efficiency ko kam kar deta hai aur hydrogen gas generation barh jati hai, jis se deposit par **pitting** ka masla hota hai. pH ko **3.8 to 4.5** tak barhane ke liye **Nickel Carbonate ($NiCO_3$)** ka istemal karein."
+
+            # - Caustic cleaning (naoh)
+            if any(w in prompt_lower for w in ["caustic", "naoh", "clean", "degreas"]):
+                return f"**Caustic Cleaning (NaOH) Stage 1 Remedy:**\nNaOH concentration **70 g/L** aur temperature **70°C** par hona chahiye. Agar motorcycle parts (jaise handles ya rims) par grease reh jaye, to subsequent coating peel ho sakti hai. Hamesha rinsing ke baad **Water-Break test** lagayen."
+
+            # - Acid activation (h2so4)
+            if any(w in prompt_lower for w in ["acid", "h2so4", "activation", "pickle"]):
+                return f"**Sulfuric Acid Activation (H2SO4) Stage 3 Remedy:**\nAcid concentration **8% v/v** aur ambient temperature (25°C) par **60 seconds** ke liye activation hoti hai. Under-pickling se peeling hoti hai; over-pickling se steel grain dissolve ho jata hai aur surface par carbon smut deposit ho jata jo nickel adhesion ko fail karta hai."
+
+            # - Semi-bright nickel
+            if "semi-bright" in prompt_lower or "semibright" in prompt_lower:
+                return f"**Semi-Bright Nickel (Watts Bath) Stage 5 Remedy:**\nNickel Sulfate (**280 g/L**), Nickel Chloride (**50 g/L**), Boric Acid (**40 g/L**), pH **4.2**, Temp **55°C**. Agar parts dull ho rahe hain to carbon purification se organic breakdown products ko clear karein."
+
+            # - Bright nickel
+            if "bright nickel" in prompt_lower or "brightener" in prompt_lower or "bright" in prompt_lower:
+                return f"**Bright Nickel Plating Stage 6 Remedy:**\nBrightener concentration **1.5 mL/L** aur pH **4.4**, Temp **58°C**. Agar brightness kam ho jaye ya streaks aane lagein, to copper impurity ko remove karne ke liye low current density **dummying** (0.2-0.5 A/dm²) run karein."
+
+            # - Chrome plating / 100:1 ratio
+            if "chrome" in prompt_lower or "ratio" in prompt_lower or "chromic" in prompt_lower:
+                return f"**Chrome Plating Stage 7 Catalyst Ratio Rule:**\nChromic Acid ($CrO_3$) to Sulfate ($SO_4^{{2-}}$) ratio hamesha **100:1** (e.g. 250 g/L Chromic acid ke liye 2.5 g/L Sulfuric acid) hona chahiye. Low ratio (excess sulfate) high current burning karta hai (Barium Carbonate add karein). High ratio (low sulfate) throwing power kam karta hai aur milky chrome banta hai (dilute sulfuric acid add karein)."
+
+            # - Plating defects
+            if "burning" in prompt_lower or "burn" in prompt_lower:
+                return f"**Defect Diagnostic: Burning:**\nRims ke flanges ya silencers ke high current areas par burning tab hoti hai jab current density zyaada ho, pH high (>4.8) ho, ya Boric Acid buffer filter range se kam ho. Current density kam karein aur temperature check karein."
+
+            if "pitting" in prompt_lower or "pit" in prompt_lower:
+                return f"**Defect Diagnostic: Pitting:**\nDeposit par micro-holes (pits) tab bante hain jab hydrogen bubbles surface par chipak jatein hain. Iske liye cathode movement check karein, air agitation barhaen, pH test karein aur anti-pitting wetting agent (surfactant) add karein."
+
+            if "peeling" in prompt_lower or "peel" in prompt_lower:
+                return f"**Defect Diagnostic: Peeling:**\nAdhesion peeling pre-treatment defects ki wajah se hoti hai. Stage 1 Caustic cleaner check karein (grease carryover) ya Stage 3 Acid pickle (smut residue ya incomplete scale removal) check karein."
+
+            # - Plating equations / Faraday's law / Calculation mode
+            if any(w in prompt_lower for w in ["calculate", "faraday", "equation", "math", "formula", "current", "thickness"]):
+                return "**Plating Calculation & Faraday's Law Math:**\nPlating thickness ($d$) aur plating time ($t$) calculate karne ke liye Faraday's Law use hota:\n\n$$m = \\frac{I \\times t \\times M}{z \\times F} \\times \\eta$$\n\nNickel ke liye valency $z=2$, molecular weight $M=58.69$ g/mol, aur efficiency $\\eta \\approx 95\\%$. Agar aap dynamic calculation slider ya Dashboard use karenge to automatic numbers calculate ho jayenge."
+
+            # Default fallback for technical
+            return f"Theek ho gaya{name_phrase}. Plating line ke bare mein details batayein, ya agar electrochemistry calculations ya defects troubleshooting karni ho to parameters batayein!"
+
+        # ----------------------------------------------------
+        # MODE A: GENERAL ASSISTANT (Natural Human Dialogue)
+        # ----------------------------------------------------
+        
+        # 1. Greetings (Roman Urdu/English/Urdu)
+        if any(w in prompt_lower for w in ["assalam o alaikum", "assalam-o-alaikum", "salam", "aoa", "a.o.a"]):
+            reply = f"Wa Alaikum Assalam{name_phrase}! Kaise hain aap? Main aap ki kis tarah madad kar sakta hoon?"
             if mood == "off":
-                reply += " Waise, aapne bataya tha ke aaj aapka mood thora off hai. Koi electroplating bath kharab chal raha hai ya koi aur masla hai?"
+                reply += " Waise, aapne bataya tha ke aaj aapka mood thora off hai. Sab kheriyat hai?"
+            return reply
+
+        if any(w in prompt_lower for w in ["kese ho", "kaise ho", "kya haal hai", "kya chal raha"]):
+            reply = f"Alhamdulillah{name_phrase}, main bilkul theek hoon! Aap batayein, aap kaise hain? Aaj floor par kya chal raha hai?"
             return reply
 
         if any(prompt_lower.startswith(w) for w in ["hello", "hi", "hey", "hy"]):
-            reply = f"Hello{name_phrase}! How can I help you today on the plating floor?"
+            reply = f"Hello{name_phrase}! How are you doing today? How can I help you?"
             if mood == "off":
-                reply += " (Hope your day gets better! Let me know if you want to chat or troubleshoot some baths.)"
+                reply += " (Hope your day gets better! Let me know if you want to talk or have any queries.)"
             return reply
 
         # 2. Name introduction acknowledgements
         if "mera naam" in prompt_lower or "my name is" in prompt_lower or "i am" in prompt_lower:
             if name:
-                return f"Bohat khoob, {name}! Mujhe khushi hui aapse mil kar. Aaj rims ya handles ke plating line par kya kaam chal raha hai?"
-            
+                return f"Bohat khoob, {name}! Mujhe khushi hui aapse mil kar. Aur batayein, aaj kya chal raha hai?"
+
         # 3. Mood acknowledgements
         if any(ind in prompt_lower for ind in ["mood off", "upset", "sad", "tensed", "tired", "exhausted", "tension"]):
-            return f"Acha? Kya hua dost{name_phrase}? Aaj kaam ka load zyada hai ya shift sakht rahi? Mujhse share karein, shayad main aapka bojh thoda halka kar sakoon, ya electroplating line ka koi masla solve kar dein!"
+            return f"Acha? Kya hua dost{name_phrase}? Aaj kaam ka load zyada hai ya shift sakht rahi? Pareshan mat hon, chill karein!"
 
         if any(ind in prompt_lower for ind in ["happy", "mood acha", "khush", "good mood", "fine"]):
-            return f"Zabardast{name_phrase}! Khushi hui sun kar. Jab mood acha ho to electroplating bath ke current aur temperature bhi ideal chalte hain! Bataiye, aaj kis process par focus karna hai?"
+            return f"Zabardast{name_phrase}! Khushi hui sun kar. Jab mood acha ho to sara din acha guzarta hai! Aur bataiye, aaj kis cheez par guftagu karni hai?"
 
-        # 4. Electroplating Troubleshooting & Expert Remedies
-        # - pH issues (nickel)
-        if "ph" in prompt_lower and ("nickel" in prompt_lower or "bath" in prompt_lower or "watt" in prompt_lower):
-            # Check for value
-            if "5.5" in prompt_lower or "high" in prompt_lower:
-                return f"Nickel bath ka pH 5.5 hona bohot zyaada hai{name_phrase}. Isse boundary layer par nickel hydroxide precipitate ho jata hai, jis se deposition rough aur burnt ho sakti hai. Ideal pH range **3.8 to 4.5** (bright nickel ke liye **4.0 to 4.8**) honi chahiye. pH kam karne ke liye dilute **Sulfuric Acid ($H_2SO_4$)** ka chemical addition karein."
-            elif "low" in prompt_lower or "3." in prompt_lower or "2." in prompt_lower:
-                return f"Nickel bath ka pH low hona (under 3.5) cathode current efficiency ko kam kar deta hai aur hydrogen gas generation barh jati hai, jis se deposit par **pitting** ka masla hota hai. pH ko **3.8 to 4.5** tak barhane ke liye **Nickel Carbonate ($NiCO_3$)** ka istemal karein."
-
-        # - Caustic cleaning (naoh)
-        if any(w in prompt_lower for w in ["caustic", "naoh", "clean", "degreas"]):
-            return f"**Caustic Cleaning (NaOH) Stage 1 Remedy:**\nNaOH concentration **70 g/L** aur temperature **70°C** par hona chahiye. Agar motorcycle parts (jaise handles ya rims) par grease reh jaye, to subsequent coating peel ho sakti hai. Hamesha rinsing ke baad **Water-Break test** lagayen."
-
-        # - Acid activation (h2so4)
-        if any(w in prompt_lower for w in ["acid", "h2so4", "activation", "pickle"]):
-            return f"**Sulfuric Acid Activation (H2SO4) Stage 3 Remedy:**\nAcid concentration **8% v/v** aur ambient temperature (25°C) par **60 seconds** ke liye activation hoti hai. Under-pickling se peeling hoti hai; over-pickling se steel grain dissolve ho jata hai aur surface par carbon smut deposit ho jata jo nickel adhesion ko fail karta hai."
-
-        # - Semi-bright nickel
-        if "semi-bright" in prompt_lower or "semibright" in prompt_lower:
-            return f"**Semi-Bright Nickel (Watts Bath) Stage 5 Remedy:**\nNickel Sulfate (**280 g/L**), Nickel Chloride (**50 g/L**), Boric Acid (**40 g/L**), pH **4.2**, Temp **55°C**. Agar parts dull ho rahe hain to carbon purification se organic breakdown products ko clear karein."
-
-        # - Bright nickel
-        if "bright nickel" in prompt_lower or "brightener" in prompt_lower or "bright" in prompt_lower:
-            return f"**Bright Nickel Plating Stage 6 Remedy:**\nBrightener concentration **1.5 mL/L** aur pH **4.4**, Temp **58°C**. Agar brightness kam ho jaye ya streaks aane lagein, to copper impurity ko remove karne ke liye low current density **dummying** (0.2-0.5 A/dm²) run karein."
-
-        # - Chrome plating / 100:1 ratio
-        if "chrome" in prompt_lower or "ratio" in prompt_lower or "chromic" in prompt_lower:
-            return f"**Chrome Plating Stage 7 Catalyst Ratio Rule:**\nChromic Acid ($CrO_3$) to Sulfate ($SO_4^{{2-}}$) ratio hamesha **100:1** (e.g. 250 g/L Chromic acid ke liye 2.5 g/L Sulfuric acid) hona chahiye. Low ratio (excess sulfate) high current burning karta hai (Barium Carbonate add karein). High ratio (low sulfate) throwing power kam karta hai aur milky chrome banta hai (dilute sulfuric acid add karein)."
-
-        # - Plating defects
-        if "burning" in prompt_lower or "burn" in prompt_lower:
-            return f"**Defect Diagnostic: Burning:**\nRims ke flanges ya silencers ke high current areas par burning tab hoti hai jab current density zyaada ho, pH high (>4.8) ho, ya Boric Acid buffer filter range se kam ho. Current density kam karein aur temperature check karein."
-
-        if "pitting" in prompt_lower or "pit" in prompt_lower:
-            return f"**Defect Diagnostic: Pitting:**\nDeposit par micro-holes (pits) tab bante hain jab hydrogen bubbles surface par chipak jatein hain. Iske liye cathode movement check karein, air agitation barhaen, pH test karein aur anti-pitting wetting agent (surfactant) add karein."
-
-        if "peeling" in prompt_lower or "peel" in prompt_lower:
-            return f"**Defect Diagnostic: Peeling:**\nAdhesion peeling pre-treatment defects ki wajah se hoti hai. Stage 1 Caustic cleaner check karein (grease carryover) ya Stage 3 Acid pickle (smut residue ya incomplete scale removal) check karein."
-
-        # - Plating equations / Faraday's law / Calculation mode
-        if any(w in prompt_lower for w in ["calculate", "faraday", "equation", "math", "formula", "current", "thickness"]):
-            return "**Plating Calculation & Faraday's Law Math:**\nPlating thickness ($d$) aur plating time ($t$) calculate karne ke liye Faraday's Law use hota:\n\n$$m = \\frac{I \\times t \\times M}{z \\times F} \\times \\eta$$\n\nNickel ke liye valency $z=2$, molecular weight $M=58.69$ g/mol, aur efficiency $\\eta \\approx 95\\%$. Agar aap dynamic calculation slider ya Dashboard use karenge to automatic numbers calculate ho jayenge."
-
-        # - General helper
         if any(w in prompt_lower for w in ["help", "kaun ho", "who are you", "what can you do", "skills", "capabilities"]):
-            return f"Main aapka **Senior Plating AI Employee** assistant hoon{name_phrase}. Main yahan rims, silencers, handles, aur fenders ki electroplating line (Caustic cleaning, H2SO4 activation, Watts Nickel, decorative Chrome) ko monitor aur troubleshoot karne ke liye hazir hoon. Aap aam guftagu ya Roman English mein kisi bhi bath ke bare mein sawal kar sakte hain!"
+            return f"Main aapka intelligent AI assistant/employee assistant hoon{name_phrase}. Main aam guftagu (Urdu, Roman English, English) bhi kar sakta hoon aur electroplating calculations aur diagnostics mein bhi expert hoon! Jo bhi poochna ho, be-fikar ho kar batayein."
 
-        # 5. Default natural fallback dialogue
+        # Default conversational responses
         responses = [
-            f"Sahi baat hai{name_phrase}. Electroplating line ke bare mein mazeed kuch janna chahte hain? Rims ya fenders ke kisi bath parameters ka data review karna ho to batayein.",
-            f"Samajh gaya dost{name_phrase}. Shift ke doran agar koi defect a jaye ya pH target se hat jaye to hamesha carbon treatment aur dummying purification ka khayal rakha karein. Kuch aur pochna hai?",
-            f"Ji bilkul. Plating floor par chemical safety sabse pehle hai. NaOH cleaning aur H2SO4 activation ke concentration test daily titration se check karein. Kya main kisi specific parameter ka solution bataon?",
-            f"Theek ho gaya{name_phrase}. Agar electrochemistry calculations ya Faraday's law math review karna ho to batayein, ya wese hi koi casual plating sawal ho to batayein!"
+            f"Theek ho gaya{name_phrase}. Aur batayein, aaj kya chal raha hai? Koi sawal ho to zaroor batayein.",
+            f"Samajh gaya dost{name_phrase}. Agar koi specific baat ya electroplating operations ke bare mein janna ho to be-fikar ho kar batayein.",
+            f"Ji bilkul. Safe reh kar kaam karein. Aur batayein, kya chal raha hai?",
+            f"Sahi baat hai{name_phrase}. Main yahan aapki help ke liye hazir hoon. Koi bhi query ho to share karein!"
         ]
-        # Choose from default responses based on prompt hash to keep it deterministic but natural
         idx = len(prompt) % len(responses)
         return responses[idx]
 
