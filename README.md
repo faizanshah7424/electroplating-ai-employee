@@ -79,3 +79,4 @@ Where:
 *   $z$ = Metal valency (e.g., Chrome = $6$, Nickel = $2$).
 *   $F$ = Faraday's Constant ($96485$ C/mol).
 *   $\eta$ = Cathode current efficiency (Bright Nickel $\approx 95\%$, Hexavalent Chrome $\approx 15\%$).
+"# electroplating-ai-employee" 
